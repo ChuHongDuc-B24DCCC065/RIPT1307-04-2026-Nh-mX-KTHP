@@ -9,30 +9,31 @@ const LoginPage: React.FC = () => {
 
   const onFinish = async (values: any) => {
     try {
-      
       const res = await axios.post('http://localhost:5000/api/login', {
-        email: values.username, 
+        email: values.username,
         password: values.password
       });
 
-      // Nếu Server trả về token (đăng nhập thành công)
       if (res.data.token) {
-        // 1. Lưu Token và thông tin User vào localStorage
+        // 1. Lưu thông tin vào localStorage
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
 
         message.success(`Chào mừng ${res.data.user.username} quay trở lại!`);
 
-        // 2. Điều hướng về trang chủ
-        navigate('/');
-        
-        // 3. Mẹo nhỏ: Force reload nhẹ để Navbar cập nhật trạng thái "Đã đăng nhập" 
-        // Hoặc bạn có thể dùng Context API/Redux để quản lý state này xịn hơn.
-        navigate('/HomePage');
+        // 2. LOGIC PHÂN QUYỀN ĐIỀU HƯỚNG
+        // Kiểm tra role trả về từ Server
+        if (res.data.user.role === 'admin') {
+          navigate('/admin'); // Đường dẫn đến AdminPage.tsx
+        } else {
+          navigate('/'); // Đường dẫn đến HomePage.tsx cho sinh viên
+        }
+
+        // 3. Làm mới trạng thái ứng dụng (tùy chọn nhưng nên có nếu chưa dùng Context)
+        window.location.reload();
       }
       
     } catch (err: any) {
-      // Lấy thông báo lỗi cụ thể từ Server nếu có (ví dụ: "Mật khẩu sai")
       const errorMsg = err.response?.data || 'Tài khoản hoặc mật khẩu không đúng!';
       message.error(errorMsg);
     }
@@ -50,7 +51,7 @@ const LoginPage: React.FC = () => {
             label="Email"
             rules={[{ required: true, message: 'Vui lòng nhập Email!' }, { type: 'email', message: 'Email không hợp lệ!' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Ví dụ: sv@ptit.edu.vn" size="large" />
+            <Input prefix={<UserOutlined />} placeholder="Ví dụ: admin@ptit.edu.vn" size="large" />
           </Form.Item>
 
           <Form.Item 

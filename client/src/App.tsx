@@ -5,80 +5,80 @@ import HomePage from './pages/Homepage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import LandingPage from './pages/LandingPage';
+
+import AdminPage from './pages/AdminPage';
+import ProtectedRoute from './components/ProtectedRoute';
 const { Header, Content, Footer } = Layout;
 
 const App: React.FC = () => {
-  const user = localStorage.getItem('user');
-  const parsedUser = user ? JSON.parse(user) : null;
+  const userData = localStorage.getItem('user');
+  const parsedUser = userData ? JSON.parse(userData) : null;
 
-  // Khai báo mảng items cho Menu
-  const navItems = parsedUser ? [
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = '/welcome';
+  };
+
+  // Menu items linh hoạt
+  const navItems = [
     {
-      key: '/',
-      label: <Link to="/">Trang chủ</Link>,
+      key: parsedUser ? '/' : '/welcome',
+      label: <Link to={parsedUser ? '/' : '/welcome'}>Trang chủ</Link>,
     },
-    {
-      key: '/logout',
-      label: <span onClick={() => {
-        localStorage.clear();
-        window.location.href = '/welcome';
-      }}>Đăng xuất</span>,
-    },
-  ] : [
-    {
-      key: '/welcome',
-      label: <Link to="/welcome">Trang giới thiệu</Link>,
-    },
-    
+    // Nếu là admin thì hiện thêm nút quản trị trên menu cho dễ vào
+    ...(parsedUser?.role === 'admin' ? [{
+      key: '/admin',
+      label: <Link to="/admin">Quản trị</Link>,
+    }] : []),
+    ...(parsedUser ? [
+      {
+        key: 'logout',
+        label: <span onClick={handleLogout} style={{ color: '#ff4d4f' }}>Đăng xuất</span>,
+      }
+    ] : [
+      {
+        key: '/login',
+        label: <Link to="/login">Đăng nhập</Link>,
+      }
+    ])
   ];
 
   return (
-    
-      <Router>
-        <Layout className="layout" style={{ minHeight: '100vh' }}>
-          {/* Thanh điều hướng (Navbar) */}
-          <Header style={{ display: 'flex', alignItems: 'center' }}>
-            <div 
-              className="logo" 
-              style={{ 
-                color: 'white', 
-                fontSize: '20px', 
-                fontWeight: 'bold', 
-                marginRight: '40px',
-                cursor: 'pointer'
-              }}
-            >
+    <Router>
+      <Layout className="layout" style={{ minHeight: '100vh' }}>
+        <Header style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="logo" style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', marginRight: '40px' }}>
+            SV-FORUM
+          </div>
+          <Menu theme="dark" mode="horizontal" items={navItems} style={{ flex: 1 }} />
+        </Header>
+        
+        <Content style={{ padding: '24px 50px', background: '#f0f2f5' }}>
+          <div style={{ background: '#fff', padding: 24, minHeight: '80vh', borderRadius: '8px' }}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />   
+              <Route path="/welcome" element={<LandingPage />} /> 
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               
-            </div>
-            
-            <Menu 
-              theme="dark" 
-              mode="horizontal" 
-              items={navItems} 
-              selectedKeys={[window.location.pathname]} 
-              style={{ flex: 1 }}
-            />
-          </Header>
-          
-          {/* Khu vực hiển thị nội dung chính */}
-          <Content style={{ padding: '24px 50px', background: '#f0f2f5' }}>
-            <div style={{ background: '#fff', padding: 24, minHeight: '80vh', borderRadius: '8px' }}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />  
-                <Route path="/welcome" element={<LandingPage />} /> 
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                </Routes>
-            </div>
-          </Content>
+              {/* Bọc trang Admin bằng ProtectedRoute */}
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <AdminPage />
+                  </ProtectedRoute>
+                } 
+              />
+            </Routes>
+          </div>
+        </Content>
 
-          {/* Chân trang */}
-          <Footer style={{ textAlign: 'center' }}>
-            Hệ thống Hỏi Đáp Sinh viên ©2026 - Được xây dựng bởi Team Bài Tập Lớn
-          </Footer>
-        </Layout>
-      </Router>
-  )
+        <Footer style={{ textAlign: 'center' }}>
+          Hệ thống Hỏi Đáp Sinh viên ©2026
+        </Footer>
+      </Layout>
+    </Router>
+  );
 };
-
 export default App;
