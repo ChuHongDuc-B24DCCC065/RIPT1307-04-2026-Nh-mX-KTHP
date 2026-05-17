@@ -14,22 +14,38 @@ app.use(cors({
 // Import pool từ config
 const pool = require('./config/db');
 
-// Test connection (đã có trong config/db.js)
+// Test connection
 pool.getConnection()
     .then(conn => {
-        console.log("✅ Main DB: Đã kết nối MySQL thành công!");
+        console.log("✅ Đã kết nối MySQL thành công!");
         conn.release();
     })
-    .catch(err => console.log("❌ Main DB: Lỗi kết nối MySQL: ", err));
+    .catch(err => console.log("❌ Lỗi kết nối MySQL: ", err));
 
-// --- API ĐĂNG KÝ ---
+// ─────────────────────────────────────────────────────────────
+// API ĐĂNG KÝ
+// ─────────────────────────────────────────────────────────────
 app.post('/api/register', async (req, res) => {
     const { username, email, password, role } = req.body;
+
+    if (!username?.trim() || !email?.trim() || !password) {
+        return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin!" });
+    }
+
     try {
+        // Kiểm tra email/username đã tồn tại
+        const [existing] = await pool.execute(
+            'SELECT id FROM users WHERE email = ? OR username = ?',
+            [email.trim(), username.trim()]
+        );
+        if (existing.length > 0) {
+            return res.status(409).json({ message: "Email hoặc tên đăng nhập đã được sử dụng!" });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         await pool.execute(
             'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-            [username, email, hashedPassword, role || 'student']
+            [username.trim(), email.trim(), hashedPassword, role || 'student']
         );
         res.status(201).json({ message: "Đăng ký thành công!" });
     } catch (err) {
@@ -38,7 +54,9 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// --- API ĐĂNG NHẬP ---
+// ─────────────────────────────────────────────────────────────
+// API ĐĂNG NHẬP
+// ─────────────────────────────────────────────────────────────
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body; 
 
@@ -60,7 +78,6 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ message: "Mật khẩu không chính xác, vui lòng thử lại!" });
         }
 
-        // Tạo token với đầy đủ thông tin
         const token = jwt.sign(
             { 
                 id: user.id, 
@@ -69,7 +86,7 @@ app.post('/api/login', async (req, res) => {
                 role: user.role
             }, 
             'bi_mat_quoc_gia', 
-            { expiresIn: '1d' }
+            { expiresIn: '7d' }
         );
 
         res.json({
@@ -92,8 +109,31 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Import admin routes
-const adminRoutes = require('./routes/adminRoutes');
+// ─────────────────────────────────────────────────────────────
+// ĐĂNG KÝ CÁC ROUTES
+// ─────────────────────────────────────────────────────────────
+const questionRoutes = require('./routes/questionRoutes');
+const commentRoutes  = require('./routes/commentRoutes');
+const userRoutes     = require('./routes/userRoutes');
+const adminRoutes    = require('./routes/adminRoutes');
+
+// Questions CRUD + Vote
+app.use('/api/questions', questionRoutes);
+
+// Comments: mount dưới questions/:id/comments (mergeParams: true trong commentRoutes)
+app.use('/api/questions/:id/comments', commentRoutes);
+
+// User profile
+app.use('/api/users', userRoutes);
+
+// Admin (chỉ dành cho admin)
 app.use('/api/admin', adminRoutes);
 
-app.listen(5000, () => console.log("🚀 Server chạy ở cổng 5000"));
+// ─────────────────────────────────────────────────────────────
+// HEALTH CHECK
+// ─────────────────────────────────────────────────────────────
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', message: 'Server đang chạy bình thường!' });
+});
+
+app.listen(5000, () => console.log("🚀 Server chạy ở cổng 5000"));
