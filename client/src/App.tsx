@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import CreateQuestion from './pages/CreateQuestion';
 import QuestionDetail from './pages/QuestionDetail';
 import UserProfile from './pages/UserProfile';
+import EditQuestion from './pages/EditQuestion';
 const { Header, Content, Footer } = Layout;
 
 const App: React.FC = () => {
@@ -70,6 +71,7 @@ const App: React.FC = () => {
               <Route path="/create-question" element={<CreateQuestion />} />
               <Route path="/questions/:id" element={<QuestionDetail />} />
               <Route path="/profile" element={<UserProfile />} />
+              <Route path="/edit-question/:id" element={<EditQuestion />} />
               
               {/* Bọc trang Admin bằng ProtectedRoute */}
               <Route 

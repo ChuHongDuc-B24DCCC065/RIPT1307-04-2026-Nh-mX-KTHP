@@ -6,8 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
-// Dữ liệu giả tương tự các trang khác để đồng bộ giao diện
-const questionsData = [
+const initialQuestionsData = [
   {
     id: 1,
     title: 'Làm thế nào để cấu hình React Router trong Vite?',
@@ -16,7 +15,8 @@ const questionsData = [
     author: 'Chu Hong Duc',
     votes: 15,
     answers: 3,
-    time: '2 giờ trước'
+    time: '2 giờ trước',
+    comments: []
   },
   {
     id: 2,
@@ -26,7 +26,8 @@ const questionsData = [
     author: 'SinhVienIT',
     votes: 8,
     answers: 1,
-    time: '5 giờ trước'
+    time: '5 giờ trước',
+    comments: []
   },
 ];
 
@@ -35,6 +36,11 @@ const UserProfile: React.FC = () => {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [form] = Form.useForm();
+  
+  const [questions, setQuestions] = useState<any[]>(() => {
+    const local = localStorage.getItem('questions');
+    return local ? JSON.parse(local) : initialQuestionsData;
+  });
 
   useEffect(() => {
     if (!user) {
@@ -44,9 +50,9 @@ const UserProfile: React.FC = () => {
 
   if (!user) return null;
 
-  // Lọc danh sách câu hỏi của chính người dùng (ở bản demo này dùng username để lọc)
-  // Nếu user là "Chu Hong Duc" (admin/mock), sẽ thấy bài viết mẫu đầu tiên
-  const myQuestions = questionsData.filter(q => q.author === user.username || (user.username === 'admin' && q.author === 'Chu Hong Duc'));
+  const myQuestions = questions.filter(
+    q => q.author === user.username || (user.username === 'admin' && q.author === 'Chu Hong Duc')
+  );
 
   const handleUpdateProfile = (values: any) => {
     const updatedUser = { ...user, ...values };
@@ -55,7 +61,6 @@ const UserProfile: React.FC = () => {
     message.success('Cập nhật thông tin thành công!');
     setIsEditModalVisible(false);
     
-    // Refresh trang hoặc cập nhật state cục bộ để UI đồng bộ
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -67,8 +72,10 @@ const UserProfile: React.FC = () => {
       okType: 'danger',
       cancelText: 'Hủy',
       onOk: () => {
+        const updatedQuestions = questions.filter(q => q.id !== id);
+        setQuestions(updatedQuestions);
+        localStorage.setItem('questions', JSON.stringify(updatedQuestions));
         message.success(`Đã xóa câu hỏi thành công!`);
-        // Trong thực tế sẽ gọi API DELETE ở đây
       }
     });
   };

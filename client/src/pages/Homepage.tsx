@@ -1,37 +1,68 @@
 import React from 'react';
 import { List, Tag, Space, Button, Row, Col, Typography, Card, message } from 'antd';
 import { MessageOutlined, LikeOutlined, UserOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
-
-// Dữ liệu giả để test giao diện
-const data = [
-  {
-    id: 1,
-    title: 'Làm thế nào để cấu hình React Router trong Vite?',
-    description: 'Mình đã cài đặt react-router-dom nhưng khi tải lại trang trên Netlify thì bị lỗi 404...',
-    tags: ['reactjs', 'vite', 'frontend'],
-    author: 'Chu Hong Duc',
-    votes: 15,
-    answers: 3,
-    time: '2 giờ trước'
-  },
-  {
-    id: 2,
-    title: 'Cách kết nối Node.js với MySQL sử dụng Sequelize',
-    description: 'Em đang làm bài tập lớn về diễn đàn, cần hướng dẫn kết nối database MySQL bằng Sequelize ORM.',
-    tags: ['nodejs', 'mysql', 'backend'],
-    author: 'SinhVienIT',
-    votes: 8,
-    answers: 1,
-    time: '5 giờ trước'
-  },
-];
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+  const initialQuestions = [
+    {
+      id: 1,
+      title: 'Làm thế nào để cấu hình React Router trong Vite?',
+      description: 'Mình đã cài đặt react-router-dom nhưng khi tải lại trang trên Netlify thì bị lỗi 404. Mình đã thử thêm file _redirects nhưng vẫn không được. Có ai gặp trường hợp này chưa ạ?',
+      tags: ['reactjs', 'vite', 'frontend'],
+      author: 'Chu Hong Duc',
+      votes: 15,
+      answers: 3,
+      time: '2 giờ trước',
+      comments: [
+        {
+          id: 101,
+          author: 'Nguyen Van A',
+          content: 'Bạn kiểm tra lại file netlify.toml xem đã cấu hình redirect đúng chưa nhé.',
+          time: '1 giờ trước'
+        },
+        {
+          id: 102,
+          author: 'Tran Thi B',
+          content: 'Nếu dùng Vite, hãy chắc chắn rằng bạn đã build đúng thư mục dist.',
+          time: '30 phút trước'
+        }
+      ]
+    },
+    {
+      id: 2,
+      title: 'Cách kết nối Node.js với MySQL sử dụng Sequelize',
+      description: 'Em đang làm bài tập lớn về diễn đàn, cần hướng dẫn kết nối database MySQL bằng Sequelize ORM. Em đã cài đặt các package cần thiết nhưng khi chạy thì báo lỗi dialect not specified.',
+      tags: ['nodejs', 'mysql', 'backend'],
+      author: 'SinhVienIT',
+      votes: 8,
+      answers: 1,
+      time: '5 giờ trước',
+      comments: [
+        {
+          id: 201,
+          author: 'Admin',
+          content: 'Bạn cần khai báo dialect: "mysql" trong cấu hình của Sequelize nhé.',
+          time: '4 giờ trước'
+        }
+      ]
+    },
+  ];
+
+  const [questions, setQuestions] = React.useState<any[]>(() => {
+    const local = localStorage.getItem('questions');
+    if (local) {
+      return JSON.parse(local);
+    } else {
+      localStorage.setItem('questions', JSON.stringify(initialQuestions));
+      return initialQuestions;
+    }
+  });
 
   const handleCreateQuestion = () => {
     if (!user) {
@@ -55,7 +86,7 @@ const HomePage: React.FC = () => {
         <List
           itemLayout="vertical"
           size="large"
-          dataSource={data}
+          dataSource={questions}
           renderItem={(item) => (
             <Card hoverable style={{ marginBottom: 16 }}>
               <List.Item
@@ -67,14 +98,16 @@ const HomePage: React.FC = () => {
                 ]}
               >
                 <List.Item.Meta
-                  title={<a href={`/questions/${item.id}`} style={{ fontSize: 20 }}>{item.title}</a>}
+                  title={<Link to={`/questions/${item.id}`} style={{ fontSize: 20 }}>{item.title}</Link>}
                   description={
                     <Space split={<Text type="secondary">|</Text>}>
                       <Space><UserOutlined /> {item.author}</Space>
                     </Space>
                   }
                 />
-                <div style={{ marginBottom: 15 }}>{item.description}</div>
+                <div style={{ marginBottom: 15 }}>
+                  {item.description.length > 150 ? `${item.description.substring(0, 150)}...` : item.description}
+                </div>
                 <div>
                   {item.tags.map(tag => (
                     <Tag color="geekblue" key={tag} style={{ cursor: 'pointer' }}>#{tag}</Tag>

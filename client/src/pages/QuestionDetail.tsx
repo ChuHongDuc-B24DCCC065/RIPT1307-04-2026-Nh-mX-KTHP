@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Typography, Tag, Space, Button, Divider, List, Avatar, Input, message, Row, Col } from 'antd';
 import { 
@@ -14,8 +14,26 @@ import {
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-// Dữ liệu giả tương tự Homepage để hiển thị đúng thông tin theo ID
-const questionsData = [
+interface Comment {
+  id: number;
+  author: string;
+  content: string;
+  time: string;
+}
+
+interface Question {
+  id: number;
+  title: string;
+  description: string;
+  tags: string[];
+  author: string;
+  votes: number;
+  answers: number;
+  time: string;
+  comments: Comment[];
+}
+
+const initialQuestionsData: Question[] = [
   {
     id: 1,
     title: 'Làm thế nào để cấu hình React Router trong Vite?',
@@ -64,16 +82,29 @@ const QuestionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  // Khai báo state commentText (Chỉ giữ lại 1 lần duy nhất ở đây)
   const [commentText, setCommentText] = useState('');
-  
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   
-  // Tìm câu hỏi theo ID
-  const question = questionsData.find(q => q.id === Number(id));
+  const [questions, setQuestions] = useState<Question[]>(() => {
+    const local = localStorage.getItem('questions');
+    if (local) {
+      return JSON.parse(local);
+    } else {
+      localStorage.setItem('questions', JSON.stringify(initialQuestionsData));
+      return initialQuestionsData;
+    }
+  });
+
+  const question = questions.find(q => q.id === Number(id));
 
   const [votes, setVotes] = useState(question ? question.votes : 0);
   const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    if (question) {
+      setVotes(question.votes);
+    }
+  }, [id, questions]);
 
   if (!question) {
     return (
@@ -89,15 +120,28 @@ const QuestionDetail: React.FC = () => {
       message.warning('Bạn cần đăng nhập để thực hiện hành động này!');
       return;
     }
+    
+    let newVotes = votes;
+    let newIsLiked = !isLiked;
     if (isLiked) {
-      setVotes(prev => prev - 1);
+      newVotes = votes - 1;
       setIsLiked(false);
       message.success('Đã bỏ thích câu hỏi');
     } else {
-      setVotes(prev => prev + 1);
+      newVotes = votes + 1;
       setIsLiked(true);
       message.success('Đã thích câu hỏi');
     }
+    setVotes(newVotes);
+
+    const updatedQuestions = questions.map(q => {
+      if (q.id === Number(id)) {
+        return { ...q, votes: newVotes };
+      }
+      return q;
+    });
+    setQuestions(updatedQuestions);
+    localStorage.setItem('questions', JSON.stringify(updatedQuestions));
   };
 
   const handlePostComment = () => {
@@ -110,7 +154,29 @@ const QuestionDetail: React.FC = () => {
       return;
     }
     
-    // Ở đây sẽ gọi API để lưu bình luận
+    const newComment = {
+      id: Date.now(),
+      author: user.username,
+      content: commentText.trim(),
+      time: 'Vừa xong'
+    };
+
+    const updatedQuestions = questions.map(q => {
+      if (q.id === Number(id)) {
+        const currentComments = q.comments || [];
+        const newComments = [...currentComments, newComment];
+        return { 
+          ...q, 
+          comments: newComments,
+          answers: newComments.length
+        };
+      }
+      return q;
+    });
+
+    setQuestions(updatedQuestions);
+    localStorage.setItem('questions', JSON.stringify(updatedQuestions));
+    
     message.success('Đã đăng bình luận thành công!');
     setCommentText('');
   };
@@ -158,7 +224,7 @@ const QuestionDetail: React.FC = () => {
               ))}
             </div>
 
-            <Divider orientation="left">Bình luận ({question.comments.length})</Divider>
+            <Divider orientation={"left" as any}>Bình luận ({question.comments.length})</Divider>
 
             <List
               className="comment-list"
