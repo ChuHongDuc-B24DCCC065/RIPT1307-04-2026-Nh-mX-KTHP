@@ -3,96 +3,97 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const jwt = require('jsonwebtoken'); 
+
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', 
+  credentials: true
+}));
 
-const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root', 
-    password: '123456',
-    database: 'diendanhoidapsinhvien', 
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
+// Import pool từ config
+const pool = require('./config/db');
 
+// Test connection (đã có trong config/db.js)
 pool.getConnection()
     .then(conn => {
-        console.log("Đã kết nối MySQL thành công!");
+        console.log("✅ Main DB: Đã kết nối MySQL thành công!");
         conn.release();
     })
-    .catch(err => console.log("Lỗi kết nối MySQL: ", err));
+    .catch(err => console.log("❌ Main DB: Lỗi kết nối MySQL: ", err));
 
 // --- API ĐĂNG KÝ ---
 app.post('/api/register', async (req, res) => {
     const { username, email, password, role } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        // Bây giờ pool đã được định nghĩa ở trên nên sẽ không lỗi nữa
         await pool.execute(
             'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
             [username, email, hashedPassword, role || 'student']
         );
-        res.status(201).send("Đăng ký thành công!");
+        res.status(201).json({ message: "Đăng ký thành công!" });
     } catch (err) {
         console.error("LỖI SQL:", err.message); 
-        res.status(500).send("Lỗi hệ thống: " + err.message);
+        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
     }
 });
+
 // --- API ĐĂNG NHẬP ---
 app.post('/api/login', async (req, res) => {
-    // Frontend gửi 'email' và 'password' trong body
     const { email, password } = req.body; 
 
-    // Kiểm tra xem người dùng có nhập đủ thông tin không
     if (!email || !password) {
-        return res.status(400).send("Vui lòng nhập đầy đủ Email và Mật khẩu!");
+        return res.status(400).json({ message: "Vui lòng nhập đầy đủ Email và Mật khẩu!" });
     }
 
     try {
-        // 1. Kiểm tra xem Email có tồn tại trong Database không
-        // Phải đảm bảo tên bảng 'users' khớp với MySQL Workbench
         const [rows] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
         
         if (rows.length === 0) {
-            return res.status(404).send("Tài khoản không tồn tại trên hệ thống!");
+            return res.status(404).json({ message: "Tài khoản không tồn tại trên hệ thống!" });
         }
 
         const user = rows[0];
-
-        // 2. So sánh mật khẩu người dùng nhập với mật khẩu đã mã hóa trong DB
-        // 'user.password' là dãy ký tự loằng ngoằng lấy từ cột password trong MySQL
         const isMatch = await bcrypt.compare(password, user.password);
         
         if (!isMatch) {
-            return res.status(401).send("Mật khẩu không chính xác, vui lòng thử lại!");
+            return res.status(401).json({ message: "Mật khẩu không chính xác, vui lòng thử lại!" });
         }
 
-        // 3. Nếu khớp, tạo Token và gửi về cho Frontend
-        // 'bi_mat_quoc_gia' là khóa bí mật để ký token, hãy giữ kín
+        // Tạo token với đầy đủ thông tin
         const token = jwt.sign(
-            { id: user.id, role: user.role }, 
+            { 
+                id: user.id, 
+                username: user.username,
+                email: user.email,
+                role: user.role
+            }, 
             'bi_mat_quoc_gia', 
-            { expiresIn: '1d' } // Token có hiệu lực trong 1 ngày
+            { expiresIn: '1d' }
         );
 
-        // Trả về Token và thông tin cơ bản của user
         res.json({
+            success: true,
             message: "Đăng nhập thành công!",
-            token,
+            token: token,
             user: {
+                id: user.id,
                 username: user.username,
                 role: user.role,
                 email: user.email
             }
         });
 
-        console.log(`User ${user.username} vừa đăng nhập thành công.`);
+        console.log(`✅ User ${user.username} (${user.role}) đăng nhập thành công.`);
 
     } catch (err) {
         console.error("LỖI LOGIN:", err.message);
-        res.status(500).send("Lỗi hệ thống khi xử lý đăng nhập!");
+        res.status(500).json({ message: "Lỗi hệ thống khi xử lý đăng nhập!" });
     }
 });
-app.listen(5000, () => console.log("Server chạy ở cổng 5000"));
+
+// Import admin routes
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
+
+app.listen(5000, () => console.log("🚀 Server chạy ở cổng 5000"));
