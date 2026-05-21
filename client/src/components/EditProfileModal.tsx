@@ -29,7 +29,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isVisible, on
     try {
       const token = localStorage.getItem('token');
       // Gọi API cập nhật profile lên Backend
-      await axios.put('http://localhost:5000/api/users/profile', values, {
+      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/profile`, values, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
